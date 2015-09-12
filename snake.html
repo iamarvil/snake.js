@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link href='https://fonts.googleapis.com/css?family=VT323' rel='stylesheet' type='text/css'>
+</head>
+<body>
+    <canvas id="snakeCanvas"></canvas>
+    <script>
+        var canvas = document.querySelector('#snakeCanvas');
+        
+        canvas.width = 640;
+        canvas.height = 480;
+        canvas.style.border = "1px #000 solid";
+        canvas.style.background = "#000";
+        
+        var ctx = canvas.getContext('2d');
+        var keydown = null;
+        
+        var snake = {
+                position: {
+                    x: Math.round(Math.floor(canvas.width / 2) / 10) * 10,
+                    y: Math.round(Math.floor(canvas.height / 2) / 10) * 10
+                },
+                length: 5,
+                bodyPosition: []
+            },
+            game = {
+                speed: {
+                    x: 10,
+                    y: 0
+                },
+                fps: 20,
+                pellet: null,
+                state: 0,
+                paused: false,
+                states: [
+                    startScreen,
+                    gameScreen,
+                    gameOverScreen
+                ],
+                highScore: 5
+            };
+        
+        function startOver() {
+            game.speed.x = 10;
+            game.speed.y = 0;
+            game.fps = 10;
+            game.pellet = null;
+            
+            snake.length = 5;
+            snake.position.x = Math.round(Math.floor(canvas.width / 2) / 10) * 10;
+            snake.position.y = Math.round(Math.floor(canvas.height / 2) / 10) * 10;
+            
+            snake.bodyPosition = [];
+            
+            // populate bodyPosition on snake's initial length
+            for(var i = 0; i < snake.length; i++) {
+                snake.bodyPosition.push({ x: snake.position.x - (10 * i), y: snake.position.y });
+            }
+        }
+        
+        window.onkeydown = function (e) {
+            keydown = e.which;
+            
+            if (keydown === 13) {
+                game.paused = !game.paused;
+            }
+        };
+        
+        // populate bodyPosition on snake's initial length
+        for(var i = 0; i < snake.length; i++) {
+            snake.bodyPosition.push({ x: snake.position.x - (10 * i), y: snake.position.y });
+        }
+        
+        window.requestAnimationFrame(animate, canvas);
+        
+        function animate() {
+            setTimeout(function () {
+                ctx.clearRect(0,0,canvas.width,canvas.height);
+                
+                game.states[game.state]();
+                
+                window.requestAnimationFrame(animate, canvas);
+            }, 1000 / game.fps);
+        }
+        
+        function gameOverScreen() {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = "30px VT323";
+            
+            var txt = "Game Over";
+            ctx.fillText(txt, (canvas.width / 2) - (ctx.measureText(txt).width / 2), (canvas.height / 2) - 40);
+            
+            var txt = "Your score is " + (snake.length - 5);
+            ctx.fillText(txt, (canvas.width / 2) - (ctx.measureText(txt).width / 2), (canvas.height / 2) - 10);
+            
+            txt = "PRESS ANY KEY TO PLAY AGAIN";
+            ctx.fillText(txt, (canvas.width / 2) - (ctx.measureText(txt).width / 2), (canvas.height / 2) + 20);
+            
+            if (keydown !== null) {
+                startOver(); 
+                game.state = 1;
+            }
+        }
+        
+        function startScreen() {
+            ctx.fillStyle = '#ffffff';
+            ctx.font = "30px VT323";
+            
+            var txt = "JavaScript SNAKE";
+            ctx.fillText(txt, (canvas.width / 2) - (ctx.measureText(txt).width / 2), (canvas.height / 2) - (10));
+            
+            txt = "PRESS ANY KEY ON YOUR KEYBOARD TO PLAY";
+            ctx.fillText(txt, (canvas.width / 2) - (ctx.measureText(txt).width / 2), (canvas.height / 2) + 20);
+            
+            if (keydown != null) {
+                game.state = 1;
+            }
+        }
+                
+        function gameScreen() {
+            if (!game.pellet) updatePellet();
+                        
+            if (!game.paused) {
+                handleInput();
+                snake.position.x += game.speed.x;
+                snake.position.y += game.speed.y;
+                hitTest();
+            }
+            
+            drawStats();
+            drawSnake();
+            drawPellet();
+
+        }
+        
+        function drawStats() {
+            ctx.font = "20px VT323";
+            ctx.fillText("Score: " + (snake.length - 5), 10, 20);
+            
+            var txt = "Speed: " + (game.fps - 9);
+            ctx.fillText(txt, canvas.width - ctx.measureText(txt).width - 10, 20);
+            
+            game.highScore = snake.length - 5 > game.highScore ? snake.length - 5 : game.highScore;
+            
+            var txt = "High-Score: " + game.highScore;
+            ctx.fillText(txt, (canvas.width / 2) - (ctx.measureText(txt).width /2), 20);
+        }
+        
+        function drawSnake() {
+            ctx.fillStyle = '#ffffff';
+            
+            ctx.fillRect(snake.position.x, snake.position.y, 10, 10);
+
+            if (!game.paused) snake.bodyPosition.unshift({ x: snake.position.x, y: snake.position.y });
+            for (var i = 0; i < snake.length; i++) { 
+                ctx.fillRect(snake.bodyPosition[i].x, snake.bodyPosition[i].y, 10, 10);
+            }
+
+            if (snake.bodyPosition.length > snake.length) snake.bodyPosition.pop();
+        }
+                
+        function updatePellet() {
+            game.pellet = {
+                x: Math.round(Math.floor(Math.random() * (canvas.width)) / 10) * 10,
+                y: Math.round(Math.floor(Math.random() * (canvas.height)) / 10) * 10
+            };
+            
+            if (game.pellet.x >= canvas.width) game.pellet.x = canvas.width - 10;
+            if (game.pellet.x < 0) game.pellet.x = 0;
+            
+            if (game.pellet.y >= canvas.height) game.pellet.y = canvas.height - 10;
+            if (game.pellet.y < 0) game.pellet.y = 0;
+        }
+            
+        function drawPellet() {
+            if (game.pellet) ctx.fillRect(game.pellet.x, game.pellet.y, 10, 10);
+        }
+        
+        function hitTest() {
+            if (snake.position.x === game.pellet.x && snake.position.y === game.pellet.y) {
+                snake.length++;
+                //game.fps++;
+
+                game.pellet = null;
+            }
+            
+            if (snake.position.x >= canvas.width || snake.position.x < 0 || 
+                snake.position.y >= canvas.height || snake.position.y < 0) {
+                game.state = 2;
+                keydown = null;
+            }
+            
+            for (var i = 0; i < snake.bodyPosition.length; i++) {
+                if (snake.position.x === snake.bodyPosition[i].x && snake.position.y === snake.bodyPosition[i].y) {
+                    keydown = null;
+                    game.state = 2;
+                    return;
+                }
+            }
+        }
+        
+        function handleInput() {
+            switch (keydown) {
+
+                case 37: 
+                    if (game.speed.x === 0) { 
+                        game.speed.x = -10; game.speed.y = 0; 
+                    } 
+                    break;
+                case 39: 
+                    if (game.speed.x === 0) {
+                        game.speed.x = 10; game.speed.y = 0; 
+                    }
+                    break;
+                case 38: 
+                    if (game.speed.y === 0) {
+                        game.speed.x = 0; game.speed.y = -10; 
+                    }
+                    break;
+                case 40: 
+                    if (game.speed.y === 0) {
+                        game.speed.x = 0; game.speed.y = 10; 
+                    }
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
